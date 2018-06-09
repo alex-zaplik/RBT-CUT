@@ -33,6 +33,15 @@ struct Node
 };
 
 /// <summary>
+/// Used to add the color parameter to nodes
+/// </summary>
+struct ColoredNode
+{
+	/// <summary>The color of a node. Can be black, red or doubly black</summary>
+	Color color;
+};
+
+/// <summary>
 /// General data node structure used to polymorphically
 /// link all node types containing a single data value.
 /// Also used for in-bucket nodes.
@@ -56,11 +65,8 @@ struct DataNode : public Node
 /// node of a tree
 /// </summary>
 template<typename T>
-struct InnerNode : public DataNode<T>
+struct InnerNode : public DataNode<T>, public ColoredNode
 {
-	/// <summary>The color of a node. Can be black, red or doubly black</summary>
-	Color color;
-
 	/// <summary>
 	/// Initializes the node with given data and color.
 	/// Parent, left and right pointers are set to nullptr.
@@ -85,7 +91,7 @@ struct InnerNode : public DataNode<T>
 /// node of a tree, containing a doubly lined list of data nodes
 /// </summary>
 template<typename T>
-struct BucketNode : public Node
+struct BucketNode : public Node, public ColoredNode
 {
 	/// <summary>The beging of the data linked list</summary>
 	DataNode<T> *first;
@@ -101,6 +107,13 @@ struct BucketNode : public Node
 	unsigned int up_size;
 	/// <summary>Number of nodes below the middle one</summary>
 	unsigned int down_size;
+
+	/// <summary>Next bucket to be fixed in global fixing</summary>
+	BucketNode* next_bucket;
+	/// <summary>Precious bucket in the fixing queue</summary>
+	BucketNode* prev_bucket;
+	/// <summary>Pointer to the node up to which fixing has been done</summary>
+	Node* fix_pointer;
 
 	/// <summary>
 	/// Default constructor.

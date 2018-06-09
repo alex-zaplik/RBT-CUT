@@ -7,6 +7,23 @@
 
 #include "Nodes.h"
 
+static Node* root;
+static unsigned int H;
+static BucketNode<int>* gf_pointer;
+
+Color get_color(ColoredNode* n)
+{
+	if (!n)
+		return Color::BLACK;
+	return n->color;
+}
+
+void set_color(ColoredNode* n, Color color)
+{
+	if (n)
+		n->color = color;
+}
+
 template<typename T>
 void move_middle_ptr(BucketNode<T>* bucket_pointer)
 {
@@ -29,6 +46,227 @@ void move_middle_ptr(BucketNode<T>* bucket_pointer)
 		bucket_pointer->middle = static_cast<DataNode<T>*>(bucket_pointer->middle->next);
 		bucket_pointer->down_size--;
 		bucket_pointer->up_size++;
+	}
+}
+
+void left_rotate(Node* node)
+{
+	Node* right_node = node->right;
+	node->right = right_node->left;
+
+	if (right_node->left != nullptr)
+	{
+		right_node->left->parent = node;
+	}
+	right_node->parent = node->parent;
+
+	if (node == root)
+	{
+		root = right_node;
+	}
+	else if (node == node->parent->left)
+	{
+		node->parent->left = right_node;
+	}
+	else
+	{
+		node->parent->right = right_node;
+	}
+
+	right_node->left = node;
+	node->parent = right_node;
+}
+
+void right_rotate(Node* node)
+{
+	Node* left_node = node->left;
+	node->left = left_node->right;
+
+	if (left_node->right != nullptr)
+	{
+		left_node->right->parent = node;
+	}
+	left_node->parent = node->parent;
+
+	if (node == root)
+	{
+		root = left_node;
+	}
+	else if (node == node->parent->left)
+	{
+		node->parent->left = left_node;
+	}
+	else
+	{
+		node->parent->right = left_node;
+	}
+
+	left_node->right = node;
+	node->parent = left_node;
+}
+
+// TODO: Implement the double red fixup method
+Node* double_red_fixup(Node* fix_pointer)
+{
+	return fix_pointer;
+}
+
+// TODO: Implement the double black fixup method
+Node* double_black_fixup(Node* fix_pointer)
+{
+	return fix_pointer;
+}
+
+template<typename T>
+Node* fixup(Node* fix_pointer)
+{
+	Node* cn = static_cast<InnerNode<T>*>(fix_pointer);
+	if (!cn) cn = static_cast<BucketNode<T>*>(fix_pointer);
+
+	if (get_color(cn) == Color::RED && get_color(cn->parent) == Color::RED)
+	{
+		fix_pointer = double_red_fixup(fix_pointer);
+	}
+	else if (get_color(cn) == Color::DOUBLE_BLACK)
+	{
+		fix_pointer = double_black_fixup(fix_pointer);
+	}
+	else
+	{
+		fix_pointer = root;
+	}
+
+	return fix_pointer;
+}
+
+template<typename T>
+void underflow_fixup_borrow(BucketNode<T>* bucket_pointer, BucketNode<T>* sibling)
+{
+	if (bucket_pointer == bucket_pointer->parent->left)
+	{
+		bucket_pointer->last->next = sibling->first;
+
+		sibling->first = sibling->first->next;
+		sibling->first->prev->prev = bucket_pointer->last;
+		sibling->first->prev = nullptr;
+
+		bucket_pointer->last = bucket_pointer->last->next;
+		bucket_pointer->last->next = nullptr;
+
+		bucket_pointer->parent->data = bucket_pointer->last->data;
+	}
+	else
+	{
+		bucket_pointer->first->prev = sibling->last;
+
+		sibling->last = sibling->last->prev;
+		sibling->last->next->next = bucket_pointer->first;
+		sibling->last->next = nullptr;
+
+		bucket_pointer->first = bucket_pointer->first->prev;
+		bucket_pointer->first->prev = nullptr;
+
+		bucket_pointer->parent->data = sibling->first->data;
+	}
+
+	move_middle_ptr(bucket_pointer);
+
+	if (sibling->fix_pointer != root)
+	{
+		sibling->fix_pointer = fixup(sibling->fix_pointer);
+	}
+	if (sibling->fix_pointer != root)
+	{
+		sibling->fix_pointer = fixup(sibling->fix_pointer);
+	}
+}
+
+template<typename T>
+void underflow_fixup_merge(BucketNode<T>* bucket_pointer, BucketNode<T>* sibling)
+{
+	Color parent_color = get_color(bucket_pointer->parent);
+
+	if (bucket_pointer == bucket_pointer->parent->left)
+	{
+		bucket_pointer->middle = sibling->first;
+		bucket_pointer->last->next = sibling->first;
+		sibling->first->prev = bucket_pointer->last;
+		bucket_pointer->last = sibling->last;
+	}
+	else
+	{
+		bucket_pointer->middle = bucket_pointer->first;
+		sibling->last->next = bucket_pointer->first;
+		bucket_pointer->first->prev = sibling->last;
+		bucket_pointer->first = sibling->first;
+	}
+
+	sibling->first = nullptr;
+	sibling->middle = nullptr;
+	sibling->last = nullptr;
+
+	sibling->prev_bucket->next_bucket = sibling->next_bucket;
+	sibling->next_bucket->prev_bucket = sibling->prev_bucket;
+
+	if (bucket_pointer->parent = bucket_pointer->parent->parent->left)
+	{
+		bucket_pointer->parent->parent->left = bucket_pointer;
+	}
+	else
+	{
+		bucket_pointer->parent->parent->right = bucket_pointer;
+	}
+
+	bucket_pointer->parent = bucket_pointer->parent->parent;
+
+    if (parent_color = Color::BLACK)
+	{
+		set_color(bucket_pointer, Color::DOUBLE_BLACK);
+	}
+        
+	bucket_pointer->fix_pointer = bucket_pointer;
+
+	bucket_pointer->next_bucket = gf_pointer;
+	bucket_pointer->prev_bucket = gf_pointer->prev_bucket;
+	
+	gf_pointer->prev_bucket->next_bucket = bucket_pointer;
+	gf_pointer->prev_bucket = bucket_pointer;
+}
+
+template<typename T>
+void underflow_fixup(BucketNode<T>* bucket_pointer)
+{
+	while (bucket_pointer->fix_pointer != root)
+	{
+		bucket_pointer->fix_pointer = fixup(bucket_pointer->fix_pointer);
+	}
+
+	if (bucket_pointer == bucket_pointer->parent->left && get_color(bucket_pointer->parent->right) == Color::RED)
+	{
+		left_rotate(bucket_pointer->parent);
+	}
+	else if (get_color(bucket_pointer->parent->left) == Color::RED)
+	{
+		right_rotate(bucket_pointer->parent);
+	}
+
+	BucketNode* sibling;
+	if (bucket_pointer == bucket_pointer->parent->left)
+	{
+		sibling = bucket_pointer->parent->right;
+	}
+	else
+	{
+		sibling = bucket_pointer->parent->left;
+	}
+
+	if (2 * sibling->size > H + 6)
+	{
+		underflow_fixup_borrow(bucket_pointer, sibling);
+	}
+	else
+	{
+		underflow_fixup_merge(bucket_pointer, sibling);
 	}
 }
 
