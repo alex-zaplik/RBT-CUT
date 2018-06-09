@@ -7,6 +7,9 @@
 
 #include "Nodes.h"
 
+// TODO: Test the underflow fixup method
+// TODO: Test the overflow fixup method
+
 static Node* root;
 static unsigned int H;
 static BucketNode<int>* gf_pointer;
@@ -268,6 +271,57 @@ void underflow_fixup(BucketNode<T>* bucket_pointer)
 	{
 		underflow_fixup_merge(bucket_pointer, sibling);
 	}
+}
+
+template<typename T>
+void overflow_fixup(BucketNode<T>* bucket_pointer)
+{
+	while (bucket_pointer->fix_pointer != root)
+	{
+		bucket_pointer->fix_pointer = fixup(bucket_pointer->fix_pointer);
+	}
+
+	InnerNode<T>* n = new InnerNode<T>(bucket_pointer->middle->data, Color::RED);
+	n->parent = bucket_pointer->parent;
+
+	if (bucket_pointer == bucket_pointer->parent->left)
+	{
+		bucket_pointer->parent->left = n;
+	}
+	else
+	{
+		bucket_pointer->parent->right = n;
+	}
+
+	BucketNode<T>* l = new BucketNode<T>(bucket_pointer->start, bucket_pointer->start, bucket_pointer->middle->prev);
+	l->parent = n;
+	l->fix_pointer = n;
+
+	BucketNode<T>* r = new BucketNode<T>(bucket_pointer->middle, bucket_pointer->middle, bucket_pointer->last);
+	r->parent = n;
+	r->fix_pointer = n;
+
+	n->left = l;
+	n->right = r;
+
+	bucket_pointer->first = nullptr;
+	bucket_pointer->middle = nullptr;
+	bucket_pointer->last = nullptr;
+
+	bucket_pointer->prev_bucket->next_bucket = bucket_pointer->next_bucket;
+	bucket_pointer->next_bucket->prevBucket = bucket_pointer->prev_bucket;
+
+	delete bucket_pointer;
+
+	l->next_bucket = r;
+	r->prev_bucket = l;
+	l->prev_bucket = gf_pointer->prev_bucket;
+	r->next_bucket = gf_pointer;
+
+	gf_pointer->prev_bucket->next_bucket = l;
+	gf_pointer->prev_bucket = r;
+
+	l->fix_pointer = fixup(l->fix_pointer);
 }
 
 template<typename T>
