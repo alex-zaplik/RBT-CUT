@@ -28,17 +28,27 @@ struct Node
 			Node *prev, *next, *bucket;
 		};
 	};
+
+	Node() : parent{ nullptr }, left{ nullptr }, right{ nullptr } {}
 };
 
 /// <summary>
 /// General data node structure used to polymorphically
-/// link all node types containing a single data value
+/// link all node types containing a single data value.
+/// Also used for in-bucket nodes.
 /// </summary>
 template<typename T>
 struct DataNode : public Node
 {
 	/// <summary>Data held inside of a node</summary>
 	T data;
+
+	/// <summary>
+	/// Initializes the node with given data.
+	/// Prev, next and bucket pointers are set to nullptr.
+	/// </summary>
+	/// <param name="data">Data to be inserted in the node</param>
+	DataNode(T data) : data{ data }, Node() {}
 };
 
 /// <summary>
@@ -58,7 +68,7 @@ struct InnerNode : public DataNode<T>
 	/// <param name="data">Data to be inserted in the node</param>
 	/// <param name="color">Value to be set as the nodes color</param>
 	InnerNode(T data, Color color) :
-		data{ data }, color{ color }, parent{ nullptr }, left{ nullptr }, right{ nullptr } {}
+		data{ data }, color{ color }, Node() {}
 
 	/// <summary>
 	/// Initializes the node with given data.
@@ -67,7 +77,7 @@ struct InnerNode : public DataNode<T>
 	/// </summary>
 	/// <param name="data">Data to be inserted in the node</param>
 	InnerNode(T data) :
-		data{ data }, color{ Color::BLACK }, parent{ nullptr }, left{ nullptr }, right{ nullptr } {}
+		data{ data }, color{ Color::BLACK }, Node() {}
 };
 
 /// <summary>
@@ -78,12 +88,12 @@ template<typename T>
 struct BucketNode : public Node
 {
 	/// <summary>The beging of the data linked list</summary>
-	Node *first;
+	DataNode<T> *first;
 	/// <summary>The middle of the data linked list</summary>
 	/// <remarks>Can point to a node above the middle</remarks>
-	Node *middle;
+	DataNode<T> *middle;
 	/// <summary>The end of the data linked list</summary>
-	Node *last;
+	DataNode<T> *last;
 
 	/// <summary>The total size of the list given</summary>
 	unsigned int size;
@@ -102,10 +112,9 @@ struct BucketNode : public Node
 	/// <param name="size">The total size of the list given</param>
 	/// <param name="up_size">Number of nodes above the middle one</param>
 	/// <param name="down_size">Number of nodes below the middle one</param>
-	BucketNode(Node* first, Node* middle, Node* last, unsigned int size, unsigned int up_size, unsigned int down_size) :
-		parent{ nullptr }, left{ nullptr }, right{ nullptr },
+	BucketNode(DataNode<T>* first, DataNode<T>* middle, DataNode<T>* last, unsigned int size, unsigned int up_size, unsigned int down_size) :
 		first{ first }, middle{ middle }, last{ last },
-		size{ size }, up_size{ up_size }, down_size{ down_size } {}
+		size{ size }, up_size{ up_size }, down_size{ down_size }, Node() {}
 
 	/// <summary>
 	/// Initializes the node with a given list.
@@ -113,7 +122,37 @@ struct BucketNode : public Node
 	/// All sizes are set to 0.
 	/// </summary>
 	BucketNode() :
-		parent{ nullptr }, left{ nullptr }, right{ nullptr },
 		first{ nullptr }, middle{ nullptr }, last{ nullptr },
-		size{ 0 }, up_size{ 0 }, down_size{ 0 } {}
+		size{ 0 }, up_size{ 0 }, down_size{ 0 }, Node() {}
+
+	/// <summary>
+	/// An ostream overload for printing the structure as a string
+	/// </summary>
+	friend std::ostream& operator<< (std::ostream& stream, const BucketNode& bn) {
+		stream << "{";
+
+		DataNode<T>* dn = bn.first;
+		while (dn != nullptr)
+		{
+			if (bn.first == dn) stream << "<";
+			if (bn.middle == dn) stream << "[";
+			if (bn.last == dn) stream << "(";
+
+			stream << dn->data;
+
+			if (bn.last == dn) stream << ")";
+			if (bn.middle == dn) stream << "]";
+			if (bn.first == dn) stream << ">";
+
+			if (dn->next != nullptr)
+			{
+				stream << ", ";
+			}
+			dn = static_cast<DataNode<T>*>(dn->next);
+		}
+
+		stream << "}";
+
+		return stream;
+	}
 };
