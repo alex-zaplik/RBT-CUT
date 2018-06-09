@@ -1,7 +1,7 @@
 #pragma once
 
 /// <summary>
-///	All possible inner node colors
+/// All possible inner node colors
 /// </summary>
 enum Color : char
 {
@@ -10,7 +10,7 @@ enum Color : char
 };
 
 /// <summary>
-///	General node structure, used to polymorphically link all node types
+/// General node structure, used to polymorphically link all node types
 /// </summary>
 struct Node
 {
@@ -31,7 +31,7 @@ struct Node
 };
 
 /// <summary>
-///	General data node structure used to polymorphically
+/// General data node structure used to polymorphically
 /// link all node types containing a single data value
 /// </summary>
 template<typename T>
@@ -42,8 +42,8 @@ struct DataNode : public Node
 };
 
 /// <summary>
-///	Inner node structure used to represent a single non-leaf
-///	node of a tree
+/// Inner node structure used to represent a single non-leaf
+/// node of a tree
 /// </summary>
 template<typename T>
 struct InnerNode : public DataNode<T>
@@ -71,7 +71,7 @@ struct InnerNode : public DataNode<T>
 };
 
 /// <summary>
-///	Bucket node structure used to represent a single leaf
+/// Bucket node structure used to represent a single leaf
 /// node of a tree, containing a doubly lined list of data nodes
 /// </summary>
 template<typename T>
