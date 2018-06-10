@@ -10,9 +10,23 @@ enum Color : char
 };
 
 /// <summary>
-/// General node structure, used to polymorphically link all node types
+/// Used to add the color parameter to nodes
 /// </summary>
-struct Node
+struct ColoredNode
+{
+	/// <summary>The color of a node. Can be black, red or doubly black</summary>
+	Color color;
+
+	ColoredNode(Color color) : color{ color } {}
+};
+
+/// <summary>
+/// General data node structure used to polymorphically
+/// link all node types containing a single data value.
+/// Also used for in-bucket nodes.
+/// </summary>
+template<typename T>
+struct Node : public ColoredNode
 {
 	union
 	{
@@ -29,26 +43,6 @@ struct Node
 		};
 	};
 
-	Node() : parent{ nullptr }, left{ nullptr }, right{ nullptr } {}
-};
-
-/// <summary>
-/// Used to add the color parameter to nodes
-/// </summary>
-struct ColoredNode
-{
-	/// <summary>The color of a node. Can be black, red or doubly black</summary>
-	Color color;
-};
-
-/// <summary>
-/// General data node structure used to polymorphically
-/// link all node types containing a single data value.
-/// Also used for in-bucket nodes.
-/// </summary>
-template<typename T>
-struct DataNode : public Node
-{
 	/// <summary>Data held inside of a node</summary>
 	T data;
 
@@ -57,7 +51,30 @@ struct DataNode : public Node
 	/// Prev, next and bucket pointers are set to nullptr.
 	/// </summary>
 	/// <param name="data">Data to be inserted in the node</param>
-	DataNode(T data) : data{ data }, Node() {}
+	Node(T data) : 
+		prev{ nullptr }, next{ nullptr }, bucket{ nullptr },
+		data{ data }, ColoredNode(Color::BLACK) {}
+
+	/// <summary>
+	/// Initializes the node with given data.
+	/// Prev, next and bucket pointers are set to nullptr.
+	/// </summary>
+	/// <param name="data">Data to be inserted in the node</param>
+	/// <param name="color">Color to be to be set to the node</param>
+	Node(T data, Color color) : 
+		prev{ nullptr }, next{ nullptr }, bucket{ nullptr },
+		data{ data }, ColoredNode(color) {}
+
+	/// <summary>
+	/// Initializes the node with given data.
+	/// Prev, next and bucket pointers are set to nullptr.
+	/// </summary>
+	/// <param name="color">Color to be to be set to the node</param>
+	Node(Color color) : 
+		prev{ nullptr }, next{ nullptr }, bucket{ nullptr },
+		data{ }, ColoredNode(color) {}
+
+	virtual ~Node() {}
 };
 
 /// <summary>
@@ -65,7 +82,7 @@ struct DataNode : public Node
 /// node of a tree
 /// </summary>
 template<typename T>
-struct InnerNode : public DataNode<T>, public ColoredNode
+struct InnerNode : public Node<T>
 {
 	/// <summary>
 	/// Initializes the node with given data and color.
@@ -74,7 +91,7 @@ struct InnerNode : public DataNode<T>, public ColoredNode
 	/// <param name="data">Data to be inserted in the node</param>
 	/// <param name="color">Value to be set as the nodes color</param>
 	InnerNode(T data, Color color) :
-		data{ data }, color{ color }, Node() {}
+		Node<T>(data, color) {}
 
 	/// <summary>
 	/// Initializes the node with given data.
@@ -83,7 +100,7 @@ struct InnerNode : public DataNode<T>, public ColoredNode
 	/// </summary>
 	/// <param name="data">Data to be inserted in the node</param>
 	InnerNode(T data) :
-		data{ data }, color{ Color::BLACK }, Node() {}
+		Node<T>(data, Color::BLACK) {}
 };
 
 /// <summary>
@@ -91,15 +108,15 @@ struct InnerNode : public DataNode<T>, public ColoredNode
 /// node of a tree, containing a doubly lined list of data nodes
 /// </summary>
 template<typename T>
-struct BucketNode : public Node, public ColoredNode
+struct BucketNode : public Node<T>
 {
 	/// <summary>The beging of the data linked list</summary>
-	DataNode<T> *first;
+	Node<T> *first;
 	/// <summary>The middle of the data linked list</summary>
 	/// <remarks>Can point to a node above the middle</remarks>
-	DataNode<T> *middle;
+	Node<T> *middle;
 	/// <summary>The end of the data linked list</summary>
-	DataNode<T> *last;
+	Node<T> *last;
 
 	/// <summary>The total size of the list given</summary>
 	unsigned int size;
@@ -113,7 +130,7 @@ struct BucketNode : public Node, public ColoredNode
 	/// <summary>Precious bucket in the fixing queue</summary>
 	BucketNode* prev_bucket;
 	/// <summary>Pointer to the node up to which fixing has been done</summary>
-	Node* fix_pointer;
+	Node<T>* fix_pointer;
 
 	/// <summary>
 	/// Default constructor.
@@ -125,9 +142,10 @@ struct BucketNode : public Node, public ColoredNode
 	/// <param name="size">The total size of the list given</param>
 	/// <param name="up_size">Number of nodes above the middle one</param>
 	/// <param name="down_size">Number of nodes below the middle one</param>
-	BucketNode(DataNode<T>* first, DataNode<T>* middle, DataNode<T>* last, unsigned int size, unsigned int up_size, unsigned int down_size) :
+	BucketNode(Node<T>* first, Node<T>* middle, Node<T>* last, unsigned int size, unsigned int up_size, unsigned int down_size) :
 		first{ first }, middle{ middle }, last{ last },
-		size{ size }, up_size{ up_size }, down_size{ down_size }, Node() {}
+		fix_pointer{ nullptr }, next_bucket{ this }, prev_bucket{ this },
+		size{ size }, up_size{ up_size }, down_size{ down_size }, Node<T>(Color::BLACK) {}
 
 	/// <summary>
 	/// Initializes the node with a given list.
@@ -136,7 +154,8 @@ struct BucketNode : public Node, public ColoredNode
 	/// </summary>
 	BucketNode() :
 		first{ nullptr }, middle{ nullptr }, last{ nullptr },
-		size{ 0 }, up_size{ 0 }, down_size{ 0 }, Node() {}
+		fix_pointer{ nullptr }, next_bucket{ this }, prev_bucket{ this },
+		size{ 0 }, up_size{ 0 }, down_size{ 0 }, Node<T>(Color::BLACK) {}
 
 	/// <summary>
 	/// An ostream overload for printing the structure as a string
@@ -144,7 +163,7 @@ struct BucketNode : public Node, public ColoredNode
 	friend std::ostream& operator<< (std::ostream& stream, const BucketNode& bn) {
 		stream << "{";
 
-		DataNode<T>* dn = bn.first;
+		Node<T>* dn = bn.first;
 		while (dn != nullptr)
 		{
 			if (bn.first == dn) stream << "<";
@@ -161,7 +180,7 @@ struct BucketNode : public Node, public ColoredNode
 			{
 				stream << ", ";
 			}
-			dn = static_cast<DataNode<T>*>(dn->next);
+			dn = dn->next;
 		}
 
 		stream << "}";

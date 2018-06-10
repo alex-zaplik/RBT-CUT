@@ -10,7 +10,7 @@
 // TODO: Test the underflow fixup method
 // TODO: Test the overflow fixup method
 
-static Node* root;
+static Node<int>* root;
 static unsigned int H;
 static BucketNode<int>* gf_pointer;
 
@@ -36,7 +36,7 @@ void move_middle_ptr(BucketNode<T>* bucket_pointer)
 		bucket_pointer->middle->prev != nullptr
 		)
 	{
-		bucket_pointer->middle = static_cast<DataNode<T>*>(bucket_pointer->middle->prev);
+		bucket_pointer->middle = bucket_pointer->middle->prev;
 		bucket_pointer->up_size--;
 		bucket_pointer->down_size++;
 	}
@@ -46,15 +46,16 @@ void move_middle_ptr(BucketNode<T>* bucket_pointer)
 		bucket_pointer->middle->next != nullptr
 		)
 	{
-		bucket_pointer->middle = static_cast<DataNode<T>*>(bucket_pointer->middle->next);
+		bucket_pointer->middle = bucket_pointer->middle->next;
 		bucket_pointer->down_size--;
 		bucket_pointer->up_size++;
 	}
 }
 
-void left_rotate(Node* node)
+template<typename T>
+void left_rotate(Node<T>* node)
 {
-	Node* right_node = node->right;
+	Node<T>* right_node = node->right;
 	node->right = right_node->left;
 
 	if (right_node->left != nullptr)
@@ -80,9 +81,10 @@ void left_rotate(Node* node)
 	node->parent = right_node;
 }
 
-void right_rotate(Node* node)
+template<typename T>
+void right_rotate(Node<T>* node)
 {
-	Node* left_node = node->left;
+	Node<T>* left_node = node->left;
 	node->left = left_node->right;
 
 	if (left_node->right != nullptr)
@@ -109,21 +111,23 @@ void right_rotate(Node* node)
 }
 
 // TODO: Implement the double red fixup method
-Node* double_red_fixup(Node* fix_pointer)
+template<typename T>
+Node<T>* double_red_fixup(Node<T>* fix_pointer)
 {
-	return fix_pointer;
+	return root;
 }
 
 // TODO: Implement the double black fixup method
-Node* double_black_fixup(Node* fix_pointer)
+template<typename T>
+Node<T>* double_black_fixup(Node<T>* fix_pointer)
 {
-	return fix_pointer;
+	return root;
 }
 
 template<typename T>
-Node* fixup(Node* fix_pointer)
+Node<T>* fixup(Node<T>* fix_pointer)
 {
-	Node* cn = static_cast<InnerNode<T>*>(fix_pointer);
+	Node<T>* cn = static_cast<InnerNode<T>*>(fix_pointer);
 	if (!cn) cn = static_cast<BucketNode<T>*>(fix_pointer);
 
 	if (get_color(cn) == Color::RED && get_color(cn->parent) == Color::RED)
@@ -157,6 +161,9 @@ void underflow_fixup_borrow(BucketNode<T>* bucket_pointer, BucketNode<T>* siblin
 		bucket_pointer->last->next = nullptr;
 
 		bucket_pointer->parent->data = bucket_pointer->last->data;
+
+		bucket_pointer->down_size++;
+		if (sibling->up_size > 0) sibling->up_size--;
 	}
 	else
 	{
@@ -170,6 +177,9 @@ void underflow_fixup_borrow(BucketNode<T>* bucket_pointer, BucketNode<T>* siblin
 		bucket_pointer->first->prev = nullptr;
 
 		bucket_pointer->parent->data = sibling->first->data;
+
+		bucket_pointer->up_size++;
+		if (sibling->down_size > 0) sibling->down_size--;
 	}
 
 	move_middle_ptr(bucket_pointer);
@@ -189,20 +199,18 @@ void underflow_fixup_merge(BucketNode<T>* bucket_pointer, BucketNode<T>* sibling
 {
 	Color parent_color = get_color(bucket_pointer->parent);
 
-	if (bucket_pointer == bucket_pointer->parent->left)
+	if (bucket_pointer == bucket_pointer->parent->right)
 	{
-		bucket_pointer->middle = sibling->first;
-		bucket_pointer->last->next = sibling->first;
-		sibling->first->prev = bucket_pointer->last;
-		bucket_pointer->last = sibling->last;
+		std::swap(bucket_pointer, sibling);
 	}
-	else
-	{
-		bucket_pointer->middle = bucket_pointer->first;
-		sibling->last->next = bucket_pointer->first;
-		bucket_pointer->first->prev = sibling->last;
-		bucket_pointer->first = sibling->first;
-	}
+
+	bucket_pointer->last->next = sibling->first;
+	sibling->first->prev = bucket_pointer->last;
+	bucket_pointer->middle = sibling->first;
+	bucket_pointer->last = sibling->last;
+
+	bucket_pointer->up_size = bucket_pointer->size;
+	bucket_pointer->down_size = ((sibling->size > 0) ? sibling->size - 1 : 0);
 
 	sibling->first = nullptr;
 	sibling->middle = nullptr;
@@ -211,7 +219,9 @@ void underflow_fixup_merge(BucketNode<T>* bucket_pointer, BucketNode<T>* sibling
 	sibling->prev_bucket->next_bucket = sibling->next_bucket;
 	sibling->next_bucket->prev_bucket = sibling->prev_bucket;
 
-	if (bucket_pointer->parent = bucket_pointer->parent->parent->left)
+	delete sibling;
+
+	if (bucket_pointer->parent == bucket_pointer->parent->parent->left)
 	{
 		bucket_pointer->parent->parent->left = bucket_pointer;
 	}
@@ -220,9 +230,10 @@ void underflow_fixup_merge(BucketNode<T>* bucket_pointer, BucketNode<T>* sibling
 		bucket_pointer->parent->parent->right = bucket_pointer;
 	}
 
+	delete bucket_pointer->parent;
 	bucket_pointer->parent = bucket_pointer->parent->parent;
 
-    if (parent_color = Color::BLACK)
+    if (parent_color == Color::BLACK)
 	{
 		set_color(bucket_pointer, Color::DOUBLE_BLACK);
 	}
@@ -247,20 +258,24 @@ void underflow_fixup(BucketNode<T>* bucket_pointer)
 	if (bucket_pointer == bucket_pointer->parent->left && get_color(bucket_pointer->parent->right) == Color::RED)
 	{
 		left_rotate(bucket_pointer->parent);
+		set_color(bucket_pointer->parent->parent, get_color(bucket_pointer->parent));
+		set_color(bucket_pointer->parent, Color::RED);
 	}
 	else if (get_color(bucket_pointer->parent->left) == Color::RED)
 	{
 		right_rotate(bucket_pointer->parent);
+		set_color(bucket_pointer->parent->parent, get_color(bucket_pointer->parent));
+		set_color(bucket_pointer->parent, Color::RED);
 	}
 
-	BucketNode* sibling;
+	BucketNode<T>* sibling;
 	if (bucket_pointer == bucket_pointer->parent->left)
 	{
-		sibling = bucket_pointer->parent->right;
+		sibling = static_cast<BucketNode<T>*>(bucket_pointer->parent->right);
 	}
 	else
 	{
-		sibling = bucket_pointer->parent->left;
+		sibling = static_cast<BucketNode<T>*>(bucket_pointer->parent->left);
 	}
 
 	if (2 * sibling->size > H + 6)
@@ -293,26 +308,40 @@ void overflow_fixup(BucketNode<T>* bucket_pointer)
 		bucket_pointer->parent->right = n;
 	}
 
-	BucketNode<T>* l = new BucketNode<T>(bucket_pointer->start, bucket_pointer->start, bucket_pointer->middle->prev);
+	BucketNode<T>* l = new BucketNode<T>(
+		bucket_pointer->first, bucket_pointer->first, bucket_pointer->middle,
+		bucket_pointer->up_size + 1, 0, bucket_pointer->up_size
+	);
+
 	l->parent = n;
 	l->fix_pointer = n;
+	n->left = l;
 
-	BucketNode<T>* r = new BucketNode<T>(bucket_pointer->middle, bucket_pointer->middle, bucket_pointer->last);
+	BucketNode<T>* r = new BucketNode<T>(
+		bucket_pointer->middle->next, bucket_pointer->middle->next, bucket_pointer->last,
+		bucket_pointer->down_size, 0, ((bucket_pointer->down_size > 0) ? bucket_pointer->down_size - 1 : 0)
+	);
 	r->parent = n;
 	r->fix_pointer = n;
-
-	n->left = l;
 	n->right = r;
+
+	if (l->last && l->last->next) l->last->next->prev = nullptr;
+	if (l->last) l->last->next = nullptr;
+
+	if (r->first && r->first->prev) r->first->prev->next = nullptr;
+	if (r->first) r->first->prev = nullptr;
 
 	bucket_pointer->first = nullptr;
 	bucket_pointer->middle = nullptr;
 	bucket_pointer->last = nullptr;
 
 	bucket_pointer->prev_bucket->next_bucket = bucket_pointer->next_bucket;
-	bucket_pointer->next_bucket->prevBucket = bucket_pointer->prev_bucket;
+	bucket_pointer->next_bucket->prev_bucket = bucket_pointer->prev_bucket;
 
 	delete bucket_pointer;
 
+	// TODO: Global fixing
+	/*
 	l->next_bucket = r;
 	r->prev_bucket = l;
 	l->prev_bucket = gf_pointer->prev_bucket;
@@ -322,12 +351,13 @@ void overflow_fixup(BucketNode<T>* bucket_pointer)
 	gf_pointer->prev_bucket = r;
 
 	l->fix_pointer = fixup(l->fix_pointer);
+	*/
 }
 
 template<typename T>
-void insert_node(BucketNode<T>* bucket_pointer, DataNode<T>* x_pointer, unsigned int in_bucket_pos, T data)
+void insert_node(BucketNode<T>* bucket_pointer, Node<T>* x_pointer, unsigned int in_bucket_pos, T data)
 {
-	DataNode<T>* n = new DataNode<T>(data);
+	Node<T>* n = new Node<T>(data);
 
 	if (x_pointer == nullptr)
 	{
@@ -411,13 +441,13 @@ void insert_node(BucketNode<T>* bucket_pointer, DataNode<T>* x_pointer, unsigned
 }
 
 template<typename T>
-void delete_node(BucketNode<T>* bucket_pointer, DataNode<T>* x_pointer, unsigned int in_bucket_pos)
+void delete_node(BucketNode<T>* bucket_pointer, Node<T>* x_pointer, unsigned int in_bucket_pos)
 {
 	if (x_pointer == bucket_pointer->first)
 	{
 		if (bucket_pointer->first == bucket_pointer->middle)
 		{
-			bucket_pointer->middle = static_cast<DataNode<T>*>(x_pointer->next);
+			bucket_pointer->middle = x_pointer->next;
 
 			if (bucket_pointer->down_size > 0)
 			{
@@ -425,7 +455,7 @@ void delete_node(BucketNode<T>* bucket_pointer, DataNode<T>* x_pointer, unsigned
 			}
 		}
 
-		bucket_pointer->first = static_cast<DataNode<T>*>(x_pointer->next);
+		bucket_pointer->first = x_pointer->next;
 
 		if (bucket_pointer->first == nullptr)
 		{
@@ -444,7 +474,7 @@ void delete_node(BucketNode<T>* bucket_pointer, DataNode<T>* x_pointer, unsigned
 	{
 		if (bucket_pointer->last == bucket_pointer->middle)
 		{
-			bucket_pointer->middle = static_cast<DataNode<T>*>(x_pointer->prev);
+			bucket_pointer->middle = x_pointer->prev;
 
 			if (bucket_pointer->up_size > 0)
 			{
@@ -452,7 +482,7 @@ void delete_node(BucketNode<T>* bucket_pointer, DataNode<T>* x_pointer, unsigned
 			}
 		}
 
-		bucket_pointer->last = static_cast<DataNode<T>*>(x_pointer->prev);
+		bucket_pointer->last = x_pointer->prev;
 
 		if (x_pointer->prev != nullptr)
 		{
@@ -467,7 +497,7 @@ void delete_node(BucketNode<T>* bucket_pointer, DataNode<T>* x_pointer, unsigned
 	{
 		if (x_pointer == bucket_pointer->middle)
 		{
-			bucket_pointer->middle = static_cast<DataNode<T>*>(bucket_pointer->middle->prev);
+			bucket_pointer->middle = bucket_pointer->middle->prev;
 			bucket_pointer->up_size--;
 		}	
 		else
@@ -491,9 +521,9 @@ void delete_node(BucketNode<T>* bucket_pointer, DataNode<T>* x_pointer, unsigned
 }
 
 template<typename T>
-void bucket_find(BucketNode<T>* bucket_pointer, DataNode<T>* &x_pointer, unsigned int &in_bucket_pos, T data)
+void bucket_find(BucketNode<T>* bucket_pointer, Node<T>* &x_pointer, unsigned int &in_bucket_pos, T data)
 {
-	DataNode<T>* dn = bucket_pointer->first;
+	Node<T>* dn = bucket_pointer->first;
 	in_bucket_pos = 0;
 
 	if (dn && dn->data > data)
@@ -504,19 +534,40 @@ void bucket_find(BucketNode<T>* bucket_pointer, DataNode<T>* &x_pointer, unsigne
 
 	while (dn != nullptr)
 	{
-		if (!dn->next || static_cast<DataNode<T>*>(dn->next)->data > data)
+		if (!dn->next || dn->next->data > data)
 		{
 			break;
 		}
 
 		in_bucket_pos++;
-		dn = static_cast<DataNode<T>*>(dn->next);
+		dn = dn->next;
 	}
 
-	x_pointer = (dn) ? static_cast<DataNode<T>*>(dn) : nullptr;
+	x_pointer = (dn) ? dn : nullptr;
 }
 
-int main()
+template<typename T>
+BucketNode<T>* prepare_test_bucket(int min, int max, bool shuffle)
+{
+	std::vector<int> nums;
+	for (int i = min; i <= max; i++) nums.push_back(i);
+	if (shuffle) std::random_shuffle(nums.begin(), nums.end());
+	
+	BucketNode<int>* bn = new BucketNode<int>();
+
+	for (unsigned int i = 0; i < nums.size(); i++)
+	{
+		Node<int>* xp;
+		unsigned int ibp;
+		bucket_find(bn, xp, ibp, nums[i]);
+
+		insert_node<int>(bn, xp, ibp, nums[i]);
+	}
+
+	return bn;
+}
+
+void single_bucket_test()
 {
 	BucketNode<int>* bn = new BucketNode<int>();
 
@@ -526,7 +577,7 @@ int main()
 
 	for (unsigned int i = 0; i < nums.size(); i++)
 	{
-		DataNode<int>* xp;
+		Node<int>* xp;
 		unsigned int ibp;
 		bucket_find(bn, xp, ibp, nums[i]);
 
@@ -541,7 +592,7 @@ int main()
 
 	for (unsigned int i = 0; i < nums.size(); i++)
 	{
-		DataNode<int>* xp;
+		Node<int>* xp;
 		unsigned int ibp;
 		bucket_find(bn, xp, ibp, nums[i]);
 
@@ -551,6 +602,133 @@ int main()
 		ss << "[" << bn->up_size << ", " << bn->down_size << "]:";
 		std::cout << std::left << std::setw(15) << ss.str() << *bn << "\n";
 	}
+}
+
+template<typename T>
+void print_test(Node<T>* start, unsigned int tab_count)
+{
+	if (!start)
+	{
+		return;
+	}
+
+	for (unsigned int t = 0; t < tab_count; t++)
+	{
+		std::cout << "   ";
+	}
+
+	BucketNode<T>* b = dynamic_cast<BucketNode<T>*>(start);
+
+	std::cout << (start->color == Color::RED ? "R" : (start->color == Color::BLACK ? "B" : "D")) << " ";
+	if (b)
+	{
+		std::cout << "[" << b->up_size << ", " << b->down_size << "]: " << *b << "\n";
+	}
+	else
+	{
+		std::cout << start->data << ": \n";
+	}
+
+	print_test(start->left, tab_count + 1);
+	print_test(start->right, tab_count + 1);
+}
+
+void borrow_test()
+{
+	// 2 * 10 > H + 6
+	// 14 > H
+
+	H = 10;
+
+	BucketNode<int>* b0 = prepare_test_bucket<int>( 1, 10, true);
+	BucketNode<int>* b1 = prepare_test_bucket<int>(11, 20, true);
+	BucketNode<int>* b2 = prepare_test_bucket<int>(21, 30, true);
+
+	root = new InnerNode<int>(10, Color::BLACK);
+	InnerNode<int>* red = new InnerNode<int>(20, Color::RED);
+
+	root->left = b0;
+	root->right = red;
+
+	red->left = b1;
+	red->right = b2;
+
+	red->parent = root;
+
+	b0->parent = root;
+	b1->parent = red;
+	b2->parent = red;
+
+	gf_pointer = b0;
+
+	print_test<int>(root, 0);
+	underflow_fixup<int>(b0);
+	std::cout << "\n";
+	print_test<int>(root, 0);
+}
+
+void merge_test()
+{
+	// 2 * 10 > H + 6
+	// 14 > H
+
+	H = 15;
+
+	BucketNode<int>* b0 = prepare_test_bucket<int>(1, 10, true);
+	BucketNode<int>* b1 = prepare_test_bucket<int>(11, 20, true);
+	BucketNode<int>* b2 = prepare_test_bucket<int>(21, 30, true);
+
+	root = new InnerNode<int>(20, Color::BLACK);
+	InnerNode<int>* red = new InnerNode<int>(10, Color::RED);
+
+	root->left = red;
+	root->right = b2;
+
+	red->left = b0;
+	red->right = b1;
+
+	red->parent = root;
+
+	b0->parent = red;
+	b1->parent = red;
+	b2->parent = root;
+
+	gf_pointer = b0;
+
+	print_test<int>(root, 0);
+	underflow_fixup<int>(b2);
+	std::cout << "\n";
+	print_test<int>(root, 0);
+}
+
+void split_test()
+{
+	BucketNode<int>* b0 = prepare_test_bucket<int>(1, 20, true);
+	BucketNode<int>* b1 = prepare_test_bucket<int>(21, 30, true);
+
+	root = new InnerNode<int>(20, Color::BLACK);
+
+	root->left = b0;
+	root->right = b1;
+
+	b0->parent = root;
+	b1->parent = root;
+
+	gf_pointer = b0;
+
+	print_test<int>(root, 0);
+	overflow_fixup<int>(b0);
+	std::cout << "\n";
+	print_test<int>(root, 0);
+}
+
+int main()
+{
+	borrow_test();
+	std::cout << "------------\n";
+	merge_test();
+	std::cout << "------------\n";
+	split_test();
 
 	std::cin.get();
 }
