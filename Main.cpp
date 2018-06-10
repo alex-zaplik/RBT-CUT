@@ -7,8 +7,9 @@
 
 #include "Nodes.h"
 
-// TODO: Test the underflow fixup method
-// TODO: Test the overflow fixup method
+// TODO: Implement global fixing
+// TODO: Test the double red fixup method
+// TODO: Test the double black fixup method
 
 static Node<int>* root;
 static unsigned int H;
@@ -110,18 +111,249 @@ void right_rotate(Node<T>* node)
 	node->parent = left_node;
 }
 
-// TODO: Implement the double red fixup method
 template<typename T>
 Node<T>* double_red_fixup(Node<T>* fix_pointer)
 {
-	return root;
+	Node<T>* N = fix_pointer;
+	Node<T>* P = fix_pointer->parent;
+	Node<T>* G = fix_pointer->parent->parent;
+
+	if (P == G->left)
+	{
+		Node<T>* U = G->right;
+
+		if (get_color(U) == Color::RED)
+		{
+			if (get_color(G) == Color::DOUBLE_BLACK)
+			{
+				set_color(G, Color::BLACK);
+			}
+			else
+			{
+				set_color(G, Color::RED);
+			}
+
+			set_color(P, Color::BLACK);
+			set_color(U, Color::BLACK);
+
+			return G;
+		}
+		else
+		{
+			if (N == P->right)
+			{
+				left_rotate(P);
+				P = N;
+				N = P->left;
+			}
+
+			right_rotate(G);
+
+			if (get_color(G) == Color::DOUBLE_BLACK)
+			{
+				set_color(P, Color::DOUBLE_BLACK);
+				set_color(G, Color::RED);
+			}
+			else
+			{
+				Color t = get_color(P);
+				set_color(P, get_color(G));
+				set_color(G, t);
+			}
+
+			return P;
+		}
+	}
+	else
+	{
+		Node<T>* U = G->left;
+
+		if (get_color(U) == Color::RED)
+		{
+			if (get_color(G) == Color::DOUBLE_BLACK)
+			{
+				set_color(G, Color::BLACK);
+			}
+			else
+			{
+				set_color(G, Color::RED);
+			}
+
+			set_color(P, Color::BLACK);
+			set_color(U, Color::BLACK);
+
+			return G;
+		}
+		else
+		{
+			if (N == P->left)
+			{
+				right_rotate(P);
+				P = N;
+				N = P->right;
+			}
+
+			left_rotate(G);
+
+			if (get_color(G) == Color::DOUBLE_BLACK)
+			{
+				set_color(P, Color::DOUBLE_BLACK);
+				set_color(G, Color::RED);
+			}
+			else
+			{
+				Color t = get_color(P);
+				set_color(P, get_color(G));
+				set_color(G, t);
+			}
+
+			return P;
+		}
+	}
 }
 
-// TODO: Implement the double black fixup method
 template<typename T>
 Node<T>* double_black_fixup(Node<T>* fix_pointer)
 {
-	return root;
+	Node<T>* N = fix_pointer;
+	Node<T>* P = fix_pointer->parent;
+
+	if (N == P->left)
+	{
+		Node<T>* S = P->right;
+
+		while (get_color(S) == Color::RED || get_color(S) == Color::DOUBLE_BLACK)
+		{
+			if (get_color(S) == Color::RED)
+			{
+				left_rotate(P);
+				if (get_color(P) == Color::BLACK)
+				{
+					set_color(S, Color::BLACK);
+					set_color(P, Color::RED);
+				}
+				S = P->right;
+			}
+			else if (get_color(S) == Color::DOUBLE_BLACK)
+			{
+				set_color(S, Color::BLACK);
+				set_color(N, Color::BLACK);
+				if (get_color(P) == Color::RED)
+				{
+					set_color(P, Color::BLACK);
+				}
+				else if (P != root)
+				{
+					set_color(P, Color::DOUBLE_BLACK);
+				}
+
+				return P;
+			}
+		}
+
+		if (get_color(S) == Color::BLACK && get_color(S->left) == Color::BLACK && get_color(S->right) == Color::BLACK)
+		{
+			set_color(S, Color::RED);
+			if (get_color(P) == RED)
+			{
+				set_color(P, BLACK);
+			}
+			else if (get_color(P) == Color::BLACK and P != root)
+			{
+				set_color(P, Color::DOUBLE_BLACK);
+			}
+
+			return P;
+		}
+		else
+		{
+			if (get_color(S->left) == Color::RED && get_color(S->right) == Color::BLACK)
+			{
+				right_rotate(S);
+				set_color(S, get_color(S->parent));
+				set_color(S->parent, Color::BLACK);
+				S = S->parent;
+			}
+			if (get_color(S->right) == Color::RED)
+			{
+				left_rotate(P);
+				set_color(S, get_color(P));
+				set_color(P, Color::BLACK);
+				set_color(S->right, Color::BLACK);
+				set_color(N, Color::BLACK);
+			}
+
+			return root;
+		}
+	}
+	else
+	{
+		Node<T>* S = P->left;
+
+		while (get_color(S) == Color::RED || get_color(S) == Color::DOUBLE_BLACK)
+		{
+			if (get_color(S) == Color::RED)
+			{
+				right_rotate(P);
+				if (get_color(P) == Color::BLACK)
+				{
+					set_color(S, Color::BLACK);
+					set_color(P, Color::RED);
+				}
+				S = P->left;
+			}
+			else if (get_color(S) == Color::DOUBLE_BLACK)
+			{
+				set_color(S, Color::BLACK);
+				set_color(N, Color::BLACK);
+				if (get_color(P) == Color::RED)
+				{
+					set_color(P, Color::BLACK);
+				}
+				else if (P != root)
+				{
+					set_color(P, Color::DOUBLE_BLACK);
+				}
+
+				return P;
+			}
+		}
+
+		if (get_color(S) == Color::BLACK && get_color(S->left) == Color::BLACK && get_color(S->right) == Color::BLACK)
+		{
+			set_color(S, Color::RED);
+			if (get_color(P) == RED)
+			{
+				set_color(P, BLACK);
+			}
+			else if (get_color(P) == Color::BLACK and P != root)
+			{
+				set_color(P, Color::DOUBLE_BLACK);
+			}
+
+			return P;
+		}
+		else
+		{
+			if (get_color(S->right) == Color::RED && get_color(S->left) == Color::BLACK)
+			{
+				left_rotate(S);
+				set_color(S, get_color(S->parent));
+				set_color(S->parent, Color::BLACK);
+				S = S->parent;
+			}
+			if (get_color(S->left) == Color::RED)
+			{
+				right_rotate(P);
+				set_color(S, get_color(P));
+				set_color(P, Color::BLACK);
+				set_color(S->left, Color::BLACK);
+				set_color(N, Color::BLACK);
+			}
+
+			return root;
+		}
+	}
 }
 
 template<typename T>
@@ -240,11 +472,14 @@ void underflow_fixup_merge(BucketNode<T>* bucket_pointer, BucketNode<T>* sibling
         
 	bucket_pointer->fix_pointer = bucket_pointer;
 
+	// TODO: Global fixing
+	/*
 	bucket_pointer->next_bucket = gf_pointer;
 	bucket_pointer->prev_bucket = gf_pointer->prev_bucket;
 	
 	gf_pointer->prev_bucket->next_bucket = bucket_pointer;
 	gf_pointer->prev_bucket = bucket_pointer;
+	*/
 }
 
 template<typename T>
