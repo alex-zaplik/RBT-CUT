@@ -52,7 +52,7 @@ struct Node : public ColoredNode
 	/// </summary>
 	/// <param name="data">Data to be inserted in the node</param>
 	Node(T data) : 
-		prev{ nullptr }, next{ nullptr }, bucket{ nullptr },
+		parent{ nullptr }, left{ nullptr }, right{ nullptr },
 		data{ data }, ColoredNode(Color::BLACK) {}
 
 	/// <summary>
@@ -62,7 +62,7 @@ struct Node : public ColoredNode
 	/// <param name="data">Data to be inserted in the node</param>
 	/// <param name="color">Color to be to be set to the node</param>
 	Node(T data, Color color) : 
-		prev{ nullptr }, next{ nullptr }, bucket{ nullptr },
+		parent{ nullptr }, left{ nullptr }, right{ nullptr },
 		data{ data }, ColoredNode(color) {}
 
 	/// <summary>
@@ -71,7 +71,7 @@ struct Node : public ColoredNode
 	/// </summary>
 	/// <param name="color">Color to be to be set to the node</param>
 	Node(Color color) : 
-		prev{ nullptr }, next{ nullptr }, bucket{ nullptr },
+		parent{ nullptr }, left{ nullptr }, right{ nullptr },
 		data{ }, ColoredNode(color) {}
 
 	virtual ~Node() {}
@@ -152,7 +152,7 @@ struct BucketNode : public Node<T>
 	/// All pointers are set to nullptr.
 	/// All sizes are set to 0.
 	/// </summary>
-	BucketNode() :
+	BucketNode() noexcept :
 		first{ nullptr }, middle{ nullptr }, last{ nullptr },
 		fix_pointer{ nullptr }, next_bucket{ this }, prev_bucket{ this },
 		size{ 0 }, up_size{ 0 }, down_size{ 0 }, Node<T>(Color::BLACK) {}
